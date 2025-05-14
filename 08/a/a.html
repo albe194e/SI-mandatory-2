@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple WebRTC Example</title>
+</head>
+<body>
+  <h2>WebRTC Video Chat</h2>
+  <video id="localVideo" autoplay muted playsinline></video>
+  <video id="remoteVideo" autoplay playsinline></video>
+
+  <button onclick="start()">Start</button>
+  <button onclick="createOffer()">Create Offer</button>
+  <button onclick="createAnswer()">Create Answer</button>
+
+  <textarea id="offer" placeholder="Paste offer/answer here"></textarea>
+  <button onclick="setRemote()">Set Remote Description</button>
+
+  <script>
+    let localStream;
+    let peer;
+
+    async function start() {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      document.getElementById('localVideo').srcObject = localStream;
+
+      peer = new RTCPeerConnection();
+
+      peer.ontrack = (event) => {
+        document.getElementById('remoteVideo').srcObject = event.streams[0];
+      };
+
+      localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
+
+      peer.onicecandidate = event => {
+        if (event.candidate) {
+          console.log('New ICE candidate:', JSON.stringify(event.candidate));
+        }
+      };
+    }
+
+    async function createOffer() {
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      document.getElementById('offer').value = JSON.stringify(offer);
+    }
+
+    async function createAnswer() {
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      document.getElementById('offer').value = JSON.stringify(answer);
+    }
+
+    async function setRemote() {
+      const desc = JSON.parse(document.getElementById('offer').value);
+      await peer.setRemoteDescription(new RTCSessionDescription(desc));
+    }
+  </script>
+</body>
+</html>
