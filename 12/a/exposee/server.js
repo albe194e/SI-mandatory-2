@@ -2,8 +2,10 @@ const express = require('express');
 const swaggerJSDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const app = express();
+const cors = require('cors');
 
 app.use(express.json()); // Middleware to parse JSON bodies
+app.use(cors());
 
 // Swagger/OpenAPI Setup
 
@@ -20,7 +22,7 @@ const swaggerDefinition = {
   },
   servers: [
     {
-      url: 'http://localhost:3000',
+      url: 'https://8636-91-101-72-250.ngrok-free.app',
       description: 'Local development server',
     },
   ],
@@ -204,6 +206,32 @@ const swaggerDefinition = {
         },
       },
     },
+    '/registered-webhooks': {
+      get: {
+        summary: 'Get all registered webhooks',
+        description: 'Returns a list of all currently registered webhooks.',
+        responses: {
+          200: {
+            description: 'List of registered webhooks',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    webhooks: {
+                      type: 'array',
+                      items: {
+                        $ref: '#/components/schemas/Webhook'
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   },
 };
 
@@ -251,6 +279,12 @@ app.post('/unregister-webhook', (req, res) => {
   res.status(200).json({ message: 'Webhook unregistered successfully' });
 });
 
+app.get('/registered-webhooks', (req, res) => {
+  res.status(200).json({
+    webhooks: registeredWebhooks
+  });
+});
+
 // Send Notification Endpoint
 app.post('/send-notification', (req, res) => {
   const { message } = req.body;
@@ -270,15 +304,53 @@ app.post('/send-notification', (req, res) => {
 });
 
 // Ping Endpoint
-app.get('/ping', (req, res) => {
-  const testPayload = req.query.testPayload || "Default Ping Payload";  // Get query param, default if not provided
+app.get('/ping', async (req, res) => {
+  const testPayload = req.query.testPayload || "Default Ping Payload";
 
-  registeredWebhooks.forEach(({ url }) => {
-    console.log(`Pinging webhook: ${url} with payload: ${testPayload}`);
-    // Here you would typically send a POST request to the URL
+  // Use fetch from node (Node.js 18+) or require('node-fetch') for older versions
+  const fetch = global.fetch || (await import('node-fetch')).default;
+
+  // Send POST request to each webhook URL for each event (or at least once if no events)
+  const results = await Promise.allSettled(
+    registeredWebhooks.flatMap(({ url, events }) => {
+      // If events is a non-empty array, send for each event; otherwise, send once with event: null
+      if (Array.isArray(events) && events.length > 0) {
+        return events.map(async (event) => {
+          try {
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ping: testPayload, event }),
+            });
+            return { url, event, status: response.status };
+          } catch (error) {
+            return { url, event, error: error.message };
+          }
+        });
+      } else {
+        // No events, just send once
+        return [
+          (async () => {
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ping: testPayload }),
+              });
+              return { url, event: null, status: response.status };
+            } catch (error) {
+              return { url, event: null, error: error.message };
+            }
+          })()
+        ];
+      }
+    })
+  );
+
+  res.status(200).json({
+    message: `Ping sent to all registered webhooks for all events with payload: ${testPayload}`,
+    results,
   });
-
-  res.status(200).json({ message: `Ping sent to all registered webhooks with payload: ${testPayload}` });
 });
 
 // Start the server
