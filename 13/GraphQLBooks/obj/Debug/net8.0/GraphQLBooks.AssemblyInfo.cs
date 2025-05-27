@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GraphQLBooks")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dfd8a1cefde060bb2d0592f183960545f188db81")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2c87eae153149caa7e6271a052a93995c99451b4")]
 [assembly: System.Reflection.AssemblyProductAttribute("GraphQLBooks")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GraphQLBooks")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
